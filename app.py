@@ -1,3 +1,4 @@
+
 import streamlit as st
 import json
 import os
@@ -12,6 +13,11 @@ from components.checklist import render_checklist
 from components.resources import render_resources
 from components.mentor_buddy import render_mentor_buddy
 from components.feedback import render_feedback
+from components.team_directory import render_team_directory
+from components.calendar_view import render_calendar
+from components.goals_tracking import render_goals_tracking
+from components.notifications import render_notifications
+from components.company_culture import render_company_culture
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -48,6 +54,10 @@ if "signup_step" not in st.session_state:
     
 if "current_page" not in st.session_state:
     st.session_state.current_page = "home"
+
+# Initialize user join date for calendar/goals
+if "user" in st.session_state and "join_date_full" not in st.session_state.user:
+    st.session_state.user["join_date_full"] = datetime.now().isoformat()
 
 # ===========================
 # 🏠 Landing Page
@@ -106,6 +116,23 @@ if "user" not in st.session_state:
 else:
     user = st.session_state.user
     
+    # Notification badge count
+    # Notification badge count
+    # Get notifications safely
+    notifications = st.session_state.get('notifications')
+
+# Ensure it's a list, not bool or None
+    if not isinstance(notifications, list):
+       notifications = []
+
+# Count only valid dict notifications
+    unread_count = len([
+    n for n in notifications
+    if isinstance(n, dict) and not n.get('read', False)
+])
+
+
+    
     # Sidebar Navigation
     with st.sidebar:
         st.markdown(f"### 👋 Welcome, {user['name']}!")
@@ -118,8 +145,13 @@ else:
         pages = {
             "🏠 Dashboard": "dashboard",
             "✅ Onboarding Checklist": "checklist",
+            "🎯 Goals & Milestones": "goals",
+            "📅 My Calendar": "calendar",
+            "👥 Team Directory": "team_directory",
             "📚 Resources & Training": "resources",
-            "👥 Mentor & Buddy": "mentor_buddy",
+            "🤝 Mentor & Buddy": "mentor_buddy",
+            f"🔔 Notifications ({unread_count})": "notifications",
+            "🌟 Company Culture": "culture",
             "💬 Feedback": "feedback",
             "⚙️ Settings": "settings"
         }
@@ -140,31 +172,69 @@ else:
         render_dashboard(user, services)
     elif current_page == "checklist":
         render_checklist(user, services)
+    elif current_page == "goals":
+        render_goals_tracking(user, services)
+    elif current_page == "calendar":
+        render_calendar(user, services)
+    elif current_page == "team_directory":
+        render_team_directory(user, services)
     elif current_page == "resources":
         render_resources(user, services)
     elif current_page == "mentor_buddy":
         render_mentor_buddy(user, services)
+    elif current_page == "notifications":
+        render_notifications(user, services)
+    elif current_page == "culture":
+        render_company_culture(user, services)
     elif current_page == "feedback":
         render_feedback(user, services)
     elif current_page == "settings":
         st.title("⚙️ Settings")
         st.info("Settings page - Update your profile, preferences, and notifications")
         
-        with st.form("profile_update"):
-            st.subheader("Update Profile")
-            new_name = st.text_input("Name", value=user['name'])
-            new_email = st.text_input("Email", value=user['email'], disabled=True)
+        tab1, tab2, tab3 = st.tabs(["👤 Profile", "🔔 Notifications", "🎨 Preferences"])
+        
+        with tab1:
+            with st.form("profile_update"):
+                st.subheader("Update Profile")
+                new_name = st.text_input("Name", value=user['name'])
+                new_email = st.text_input("Email", value=user['email'], disabled=True)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    department = st.text_input("Department", value=user.get('department', ''))
+                with col2:
+                    role = st.text_input("Role", value=user.get('role', ''))
+                
+                bio = st.text_area("Bio", value=user.get('bio', ''), 
+                                  placeholder="Tell us about yourself...")
+                
+                if st.form_submit_button("💾 Save Changes"):
+                    user['name'] = new_name
+                    user['department'] = department
+                    user['role'] = role
+                    user['bio'] = bio
+                    services['auth'].update_user(user['email'], user)
+                    st.success("Profile updated successfully!")
+                    st.rerun()
+        
+        with tab2:
+            st.subheader("Notification Preferences")
             
-            col1, col2 = st.columns(2)
-            with col1:
-                department = st.text_input("Department", value=user.get('department', ''))
-            with col2:
-                role = st.text_input("Role", value=user.get('role', ''))
+            email_notifs = st.checkbox("📧 Email Notifications", value=True)
+            meeting_reminders = st.checkbox("📅 Meeting Reminders", value=True)
+            task_reminders = st.checkbox("✅ Task Due Date Reminders", value=True)
+            weekly_digest = st.checkbox("📊 Weekly Progress Digest", value=True)
             
-            if st.form_submit_button("💾 Save Changes"):
-                user['name'] = new_name
-                user['department'] = department
-                user['role'] = role
-                services['auth'].update_user(user['email'], user)
-                st.success("Profile updated successfully!")
-                st.rerun()
+            if st.button("Save Notification Settings"):
+                st.success("Notification preferences saved!")
+        
+        with tab3:
+            st.subheader("Display Preferences")
+            
+            theme = st.selectbox("Theme", ["Light", "Dark", "Auto"])
+            language = st.selectbox("Language", ["English", "Spanish", "French", "German"])
+            timezone = st.selectbox("Timezone", ["PST", "EST", "CST", "MST", "UTC"])
+            
+            if st.button("Save Preferences"):
+                st.success("Preferences saved!")
