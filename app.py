@@ -1,230 +1,170 @@
 import streamlit as st
 import json
 import os
-import re
-from pydantic import BaseModel
-from langchain_huggingface import HuggingFaceEndpoint, ChatHuggingFace
-from langchain.prompts import PromptTemplate
+from datetime import datetime, timedelta
+from utils.auth import AuthManager
+from utils.email_service import EmailService
+from utils.llm_service import LLMService
+from components.signup import render_signup
+from components.login import render_login
+from components.dashboard import render_dashboard
+from components.checklist import render_checklist
+from components.resources import render_resources
+from components.mentor_buddy import render_mentor_buddy
+from components.feedback import render_feedback
 from dotenv import load_dotenv
-import smtplib
-from email.message import EmailMessage
 
 load_dotenv()
 
 # ===========================
-# 🧠 User Schema
+# 🎨 Page Configuration
 # ===========================
-class UserOnboarding(BaseModel):
-    name: str | None = None
-    email: str | None = None
-    password: str | None = None
-    plan: str | None = None
+st.set_page_config(
+    page_title="OnboardX - Smart Onboarding Platform",
+    page_icon="🚀",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # ===========================
-# ⚙️ Load LLM
+# 🎯 Initialize Services
 # ===========================
 @st.cache_resource
-def load_model():
-    llm = HuggingFaceEndpoint(
-        repo_id="mistralai/Mistral-7B-Instruct-v0.3",
-        task="text-generation",
-        max_new_tokens=256,
-        temperature=0.3,
-    )
-    return ChatHuggingFace(llm=llm)
+def init_services():
+    return {
+        'auth': AuthManager(),
+        'email': EmailService(),
+        'llm': LLMService()
+    }
 
-model = load_model()
+services = init_services()
 
 # ===========================
-# 💡 Prompt Template
-# ===========================
-prompt_template = PromptTemplate(
-    template=(
-        "You are an AI assistant for onboarding. Extract name, email, password from natural language.\n"
-        "Return JSON only, no extra text. Example:\n"
-        "{{\"name\": \"Akhil\", \"email\": \"akhil@gmail.com\", \"password\": \"secure123\"}}\n\n"
-        "User Input: {user_input}"
-    ),
-    input_variables=["user_input"],
-)
-
-# ===========================
-# 📁 User storage
-# ===========================
-USER_FILE = "users.json"
-
-def load_users():
-    if not os.path.exists(USER_FILE):
-        return {}
-    with open(USER_FILE, "r") as f:
-        return json.load(f)
-
-def save_users(users):
-    with open(USER_FILE, "w") as f:
-        json.dump(users, f, indent=2)
-
-users = load_users()
-
-# ===========================
-# ✉️ Email helper
-# ===========================
-import os
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
-
-load_dotenv()
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-EMAIL_FROM = os.getenv("EMAIL_FROM")
-
-def is_valid_email(email: str) -> bool:
-    return re.match(r"[^@]+@[^@]+\.[^@]+", email) is not None
-
-def send_confirmation_email(to_email: str, name: str, plan: str):
-    if not is_valid_email(to_email):
-        st.warning("❌ Invalid email address.")
-        return
-
-    try:
-        sg = SendGridAPIClient(SENDGRID_API_KEY)
-        message = Mail(
-            from_email=EMAIL_FROM,
-            to_emails=to_email,
-            subject="🎉 OnboardX Account Created!",
-            html_content=f"""
-                <p>Hi {name},</p>
-                <p>Your OnboardX account has been successfully created!</p>
-                <p>Your selected plan: <b>{plan}</b></p>
-                <p>Welcome aboard!</p>
-                <p>— OnboardX Team</p>
-            """
-        )
-        sg.send(message)
-        st.success(f"✅ Confirmation email sent to {to_email}!")
-    except Exception as e:
-        st.warning(f"Could not send email: {e}")
-
-# ===========================
-# 🏗️ Streamlit UI
-# ===========================
-st.set_page_config(page_title="OnboardX Personalized Assistant", page_icon="🤖", layout="centered")
-st.title("🤖 Personalized Onboarding Assistant")
-st.markdown(
-    "Step-by-step AI-guided onboarding. Users are welcomed personally and guided progressively."
-)
-
-# ===========================
-# Step-by-step signup session
+# 🔧 Session State Initialization
 # ===========================
 if "signup_step" not in st.session_state:
     st.session_state.signup_step = 0
     st.session_state.signup_data = {}
-
-tab1, tab2 = st.tabs(["🆕 Sign Up", "🔑 Log In"])
-
-# ===========================
-# SIGN UP
-# ===========================
-with tab1:
-    st.subheader("Step-by-step Signup")
-
-    if st.session_state.signup_step == 0:
-        name = st.text_input("👋 What's your name?", value=st.session_state.signup_data.get("name", ""))
-        if st.button("Next →"):
-            if name.strip():
-                st.session_state.signup_data["name"] = name.strip()
-                st.session_state.signup_step = 1
-            else:
-                st.warning("Please enter your name to continue.")
-
-    elif st.session_state.signup_step == 1:
-        email_input = st.text_input("📧 Email", value=st.session_state.signup_data.get("email", ""))
-        if st.button("Next →"):
-            email_input = email_input.strip()
-            if not email_input:
-                st.warning("Please enter your email to continue.")
-            elif not is_valid_email(email_input):
-                st.warning("⚠️ Please enter a valid email address.")
-            else:
-                st.session_state.signup_data["email"] = email_input
-                st.session_state.signup_step = 2
-
-    elif st.session_state.signup_step == 2:
-        password = st.text_input("🔑 Password", type="password", value=st.session_state.signup_data.get("password", ""))
-        if st.button("Next →"):
-            if password.strip():
-                st.session_state.signup_data["password"] = password.strip()
-                st.session_state.signup_step = 3
-            else:
-                st.warning("Please enter a password to continue.")
-
-    elif st.session_state.signup_step == 3:
-        plan = st.radio("📦 Choose your onboarding plan", ["Basic", "Pro", "Enterprise"], index=0)
-        if st.button("Create Account"):
-            st.session_state.signup_data["plan"] = plan
-            data = UserOnboarding(**st.session_state.signup_data)
-
-            if not data.name or not data.password or not data.email:
-                st.error("⚠️ Name, email, and password are required!")
-            else:
-                # Save user
-                users[data.email] = {
-                    "name": data.name,
-                    "password": data.password,
-                    "plan": data.plan
-                }
-                save_users(users)
-
-                # Send confirmation email
-                send_confirmation_email(data.email, data.name, data.plan)
-
-                st.success(f"🎉 Account successfully created for {data.name}!")
-                st.markdown(f"📧 **Your login email:** `{data.email}`")
-                st.info(f"Your selected plan: **{data.plan}**")
-                st.balloons()
-
-                # Reset session state
-                st.session_state["user"] = data.dict()
-                st.session_state.signup_step = 0
-                st.session_state.signup_data = {}
+    
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "home"
 
 # ===========================
-# LOGIN
+# 🏠 Landing Page
 # ===========================
-with tab2:
-    st.subheader("Already have an account?")
-    email = st.text_input("📧 Email", key="login_email")
-    password = st.text_input("🔑 Password", type="password", key="login_pwd")
-
-    if st.button("🚀 Log In"):
-        if email in users and users[email]["password"] == password:
-            st.session_state["user"] = {
-                "name": users[email]["name"],
-                "email": email,
-                "plan": users[email]["plan"]
-            }
-            st.success(f"Welcome back, {users[email]['name']}! 👋")
-        else:
-            st.error("Invalid credentials. Please try again.")
-
-# ===========================
-# DASHBOARD / LOGGED-IN
-# ===========================
-if "user" in st.session_state:
+if "user" not in st.session_state:
+    st.markdown("""
+    <style>
+    .hero-title {
+        font-size: 3.5rem;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 1rem;
+        background: linear-gradient(120deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .hero-subtitle {
+        font-size: 1.5rem;
+        text-align: center;
+        color: #666;
+        margin-bottom: 3rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="hero-title">🚀 OnboardX</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-subtitle">Transform Your Employee Onboarding Experience</div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("### 📋 Organized Process")
+        st.write("Clear checklists, schedules, and assigned mentors from day one")
+    
+    with col2:
+        st.markdown("### 🤝 Human Connection")
+        st.write("Built-in buddy system and team introductions")
+    
+    with col3:
+        st.markdown("### 🎯 Clear Goals")
+        st.write("Defined success metrics and expectations")
+    
     st.markdown("---")
-    st.header(f"👋 Hello, {st.session_state['user']['name']}!")
-    st.write(f"You're logged in as **{st.session_state['user']['email']}**.")
-    st.info(f"✅ Your selected plan: **{st.session_state['user']['plan']}**")
+    
+    tab1, tab2 = st.tabs(["🆕 Sign Up", "🔑 Log In"])
+    
+    with tab1:
+        render_signup(services)
+    
+    with tab2:
+        render_login(services)
 
-    st.subheader("📊 Personalized Dashboard")
-    st.markdown(
-        f"""
-        Welcome {st.session_state['user']['name']}! Here’s your next steps:
-        - Complete your profile
-        - Explore features for your **{st.session_state['user']['plan']}** plan
-        - Track your onboarding progress
-        """
-    )
-
-    if st.button("🔓 Log Out"):
-        st.session_state.pop("user")
-        st.success("You’ve been logged out.")
+# ===========================
+# 📊 Main Dashboard (Logged In)
+# ===========================
+else:
+    user = st.session_state.user
+    
+    # Sidebar Navigation
+    with st.sidebar:
+        st.markdown(f"### 👋 Welcome, {user['name']}!")
+        st.markdown(f"**Plan:** {user['plan']}")
+        st.markdown(f"**Join Date:** {user.get('join_date', 'Today')}")
+        
+        st.markdown("---")
+        st.markdown("### 🧭 Navigation")
+        
+        pages = {
+            "🏠 Dashboard": "dashboard",
+            "✅ Onboarding Checklist": "checklist",
+            "📚 Resources & Training": "resources",
+            "👥 Mentor & Buddy": "mentor_buddy",
+            "💬 Feedback": "feedback",
+            "⚙️ Settings": "settings"
+        }
+        
+        for label, page_id in pages.items():
+            if st.button(label, key=page_id, use_container_width=True):
+                st.session_state.current_page = page_id
+        
+        st.markdown("---")
+        if st.button("🔓 Log Out", use_container_width=True):
+            st.session_state.clear()
+            st.rerun()
+    
+    # Main Content Area
+    current_page = st.session_state.current_page
+    
+    if current_page == "dashboard":
+        render_dashboard(user, services)
+    elif current_page == "checklist":
+        render_checklist(user, services)
+    elif current_page == "resources":
+        render_resources(user, services)
+    elif current_page == "mentor_buddy":
+        render_mentor_buddy(user, services)
+    elif current_page == "feedback":
+        render_feedback(user, services)
+    elif current_page == "settings":
+        st.title("⚙️ Settings")
+        st.info("Settings page - Update your profile, preferences, and notifications")
+        
+        with st.form("profile_update"):
+            st.subheader("Update Profile")
+            new_name = st.text_input("Name", value=user['name'])
+            new_email = st.text_input("Email", value=user['email'], disabled=True)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                department = st.text_input("Department", value=user.get('department', ''))
+            with col2:
+                role = st.text_input("Role", value=user.get('role', ''))
+            
+            if st.form_submit_button("💾 Save Changes"):
+                user['name'] = new_name
+                user['department'] = department
+                user['role'] = role
+                services['auth'].update_user(user['email'], user)
+                st.success("Profile updated successfully!")
+                st.rerun()

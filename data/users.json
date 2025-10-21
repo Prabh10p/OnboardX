@@ -1,0 +1,33 @@
+{
+  "prabh2004p@gmail.com": {
+    "name": "Prabh",
+    "email": "prabh2004p@gmail.com",
+    "password": "Us01012003",
+    "plan": "Enterprise",
+    "join_date": "2025-10-21",
+    "onboarding_progress": 0,
+    "department": "Operations",
+    "role": "Data Analayst",
+    "mentor_assigned": true,
+    "buddy_assigned": false,
+    "checklist_completed": [],
+    "mentor_name": "Alex Johnson",
+    "mentor_role": "Senior Software Engineer"
+  },
+  "prabhjot.singh.data@gmail.com": {
+    "name": "Prabh",
+    "email": "prabhjot.singh.data@gmail.com",
+    "password": "Us01012003",
+    "plan": "Enterprise",
+    "join_date": "2025-10-21",
+    "onboarding_progress": 13,
+    "department": "Sales",
+    "role": "Data Analyst",
+    "mentor_assigned": false,
+    "buddy_assigned": false,
+    "checklist_completed": [
+      "profile_setup",
+      "it_access"
+    ]
+  }
+}
