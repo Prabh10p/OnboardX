@@ -5,11 +5,17 @@ def render_notifications(user, services):
     """Notification center"""
     st.title("🔔 Notifications")
     
-    # Initialize notifications
-    if 'notifications' not in st.session_state:
-        st.session_state.notifications = get_default_notifications(user)
+    # Initialize notifications - check if empty and populate
+    if not isinstance(st.session_state.notifications, list):
+        st.session_state.notifications = []
+    
+    if len(st.session_state.notifications) == 0:
+        # Populate with default notifications
+        default_notifs = get_default_notifications(user)
+        st.session_state.notifications.extend(default_notifs)
     
     notifications = st.session_state.notifications
+    
     unread = len([n for n in notifications if not n['read']])
     
     # Header with stats
@@ -42,14 +48,14 @@ def render_notifications(user, services):
         task_notifs = [n for n in notifications if n['type'] == 'task']
         display_notifications(task_notifs, filter_type='task')
 
-
 def display_notifications(notifications, filter_type=None):
     """Display list of notifications"""
     if not notifications:
-        st.info("No notifications available.")
+        st.info("No notifications")
         return
     
     for notif in notifications:
+        # Notification card
         bg_color = "#f0f2f6" if notif['read'] else "#e3f2fd"
         
         with st.container():
@@ -80,7 +86,6 @@ def display_notifications(notifications, filter_type=None):
             
             st.markdown("---")
 
-
 def get_notification_icon(notif_type):
     """Get icon for notification type"""
     icons = {
@@ -94,43 +99,71 @@ def get_notification_icon(notif_type):
     }
     return icons.get(notif_type, "🔔")
 
-
 def get_default_notifications(user):
     """Generate default notifications"""
-    today = datetime.now().strftime("%b %d, %Y %I:%M %p")
-    tomorrow = (datetime.now() + timedelta(days=1)).strftime("%b %d, %Y %I:%M %p")
-    
     return [
         {
             "id": "n1",
             "type": "welcome",
-            "title": f"Welcome to OnboardX, {user['name']}!",
-            "message": "We're excited to have you here. Check your onboarding checklist to get started.",
-            "timestamp": today,
+            "title": "Welcome to OnboardX!",
+            "message": "We're excited to have you here. Check out your personalized onboarding checklist to get started.",
+            "timestamp": "Today",
             "read": False
         },
         {
             "id": "n2",
             "type": "meeting",
-            "title": "Orientation Meeting Scheduled",
-            "message": "Your onboarding orientation is tomorrow at 10:00 AM with HR.",
-            "timestamp": tomorrow,
+            "title": "Upcoming: 1:1 with Manager",
+            "message": "Your weekly check-in is scheduled for tomorrow at 2:00 PM",
+            "timestamp": "2 hours ago",
             "read": False
         },
         {
             "id": "n3",
             "type": "task",
-            "title": "Complete Your Profile Setup",
-            "message": "Add your department and role in the Settings page to personalize your dashboard.",
-            "timestamp": today,
+            "title": "Action Required: Complete Benefits Enrollment",
+            "message": "Please complete your benefits enrollment by Friday. Due in 3 days.",
+            "timestamp": "5 hours ago",
             "read": False
         },
         {
             "id": "n4",
-            "type": "achievement",
-            "title": "First Task Completed 🎉",
-            "message": "You’ve completed your first onboarding step — great job!",
-            "timestamp": today,
+            "type": "message",
+            "title": "Message from Sarah Johnson",
+            "message": "Hey! Welcome to the team. Let's grab coffee this week!",
+            "timestamp": "Yesterday",
             "read": True
+        },
+        {
+            "id": "n5",
+            "type": "reminder",
+            "title": "Reminder: Training Module Due Soon",
+            "message": "Complete 'Security & Compliance Training' by end of week",
+            "timestamp": "Yesterday",
+            "read": True
+        },
+        {
+            "id": "n6",
+            "type": "achievement",
+            "title": "Achievement Unlocked! 🎉",
+            "message": "You've completed your first week! Keep up the great work.",
+            "timestamp": "2 days ago",
+            "read": False
         }
     ]
+
+def add_notification(notif_type, title, message):
+    """Add a new notification"""
+    if 'notifications' not in st.session_state:
+        st.session_state.notifications = []
+    
+    new_notif = {
+        "id": f"n_{datetime.now().timestamp()}",
+        "type": notif_type,
+        "title": title,
+        "message": message,
+        "timestamp": "Just now",
+        "read": False
+    }
+    
+    st.session_state.notifications.insert(0, new_notif)

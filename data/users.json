@@ -20,14 +20,19 @@
     "password": "Us01012003",
     "plan": "Enterprise",
     "join_date": "2025-10-21",
-    "onboarding_progress": 13,
+    "onboarding_progress": 40,
     "department": "Sales",
     "role": "Data Analyst",
     "mentor_assigned": false,
     "buddy_assigned": false,
     "checklist_completed": [
       "profile_setup",
-      "it_access"
-    ]
+      "custom_training",
+      "security_training",
+      "handbook_review",
+      "it_access",
+      "welcome_video"
+    ],
+    "join_date_full": "2025-10-21T20:33:44.001367"
   }
 }

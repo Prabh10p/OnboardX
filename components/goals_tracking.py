@@ -6,12 +6,18 @@ def render_goals_tracking(user, services):
     """30-60-90 day goals tracking system"""
     st.title("🎯 Goals & Milestones")
     
-    # Initialize goals in session state
-    if 'goals' not in st.session_state:
-        st.session_state.goals = get_default_goals(user)
+    # Initialize goals in session state - only if empty
+    if not st.session_state.goals or not isinstance(st.session_state.goals, list):
+        # Don't reassign, just populate if empty
+        if len(st.session_state.goals) == 0:
+            st.session_state.goals.extend(get_default_goals(user))
     
     # Progress overview
     goals = st.session_state.goals
+    
+    # Safety check - ensure goals is a list
+    if not isinstance(goals, list):
+        goals = []
     completed = len([g for g in goals if g['status'] == 'completed'])
     total = len(goals)
     progress = (completed / total * 100) if total > 0 else 0

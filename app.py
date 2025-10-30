@@ -1,4 +1,3 @@
-
 import streamlit as st
 import json
 import os
@@ -54,6 +53,16 @@ if "signup_step" not in st.session_state:
     
 if "current_page" not in st.session_state:
     st.session_state.current_page = "home"
+
+# Initialize notifications and goals BEFORE any rendering
+if "notifications" not in st.session_state:
+    st.session_state.notifications = []
+
+if "goals" not in st.session_state:
+    st.session_state.goals = []
+
+if "meetings" not in st.session_state:
+    st.session_state.meetings = []
 
 # Initialize user join date for calendar/goals
 if "user" in st.session_state and "join_date_full" not in st.session_state.user:
@@ -116,22 +125,18 @@ if "user" not in st.session_state:
 else:
     user = st.session_state.user
     
-    # Notification badge count
-    # Notification badge count
-    # Get notifications safely
-    notifications = st.session_state.get('notifications')
-
-# Ensure it's a list, not bool or None
+    # Notification badge count with safety checks
+    notifications = st.session_state.get('notifications', [])
+    
+    # Ensure notifications is a list
     if not isinstance(notifications, list):
-       notifications = []
-
-# Count only valid dict notifications
+        notifications = []
+    
+    # Count unread notifications (only valid dict items)
     unread_count = len([
-    n for n in notifications
-    if isinstance(n, dict) and not n.get('read', False)
-])
-
-
+        n for n in notifications 
+        if isinstance(n, dict) and not n.get('read', False)
+    ])
     
     # Sidebar Navigation
     with st.sidebar:
@@ -145,19 +150,19 @@ else:
         pages = {
             "🏠 Dashboard": "dashboard",
             "✅ Onboarding Checklist": "checklist",
-            "🎯 Goals & Milestones": "goals",
+            "🎯 Goals & Milestones": "goals_page",
             "📅 My Calendar": "calendar",
             "👥 Team Directory": "team_directory",
             "📚 Resources & Training": "resources",
             "🤝 Mentor & Buddy": "mentor_buddy",
-            f"🔔 Notifications ({unread_count})": "notifications",
+            f"🔔 Notifications ({unread_count})": "notifications_page",
             "🌟 Company Culture": "culture",
             "💬 Feedback": "feedback",
             "⚙️ Settings": "settings"
         }
         
         for label, page_id in pages.items():
-            if st.button(label, key=page_id, use_container_width=True):
+            if st.button(label, key=f"nav_{page_id}", use_container_width=True):
                 st.session_state.current_page = page_id
         
         st.markdown("---")

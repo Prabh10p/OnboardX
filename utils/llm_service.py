@@ -1,5 +1,5 @@
 from langchain_huggingface import HuggingFaceEndpoint, ChatHuggingFace
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 import json
 import re
 
